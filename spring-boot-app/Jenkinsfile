@@ -1,0 +1,70 @@
+pipeline {
+    agent any
+    
+    environment {
+        GITHUB_CREDENTIALS = credentials('github-connexion')
+        DOCKERHUB_CREDENTIALS = credentials('docker-connexion')
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout the code from your GitHub repository
+                script {
+			git branch: 'main', credentialsId: 'github-connexion', url: 'https://github.com/omarbarkallah/spring-pipe.git'
+                }
+            }
+        }
+        
+stage('Build Code') {
+    steps {
+        // Build your Spring Boot application
+        withMaven(maven: 'Maven3') {
+            sh "mvn clean install -Dmaven.test.skip=true"
+        }
+    }
+}
+
+        stage('Build Docker Image') {
+            steps {
+                // Build Docker image using the Dockerfile
+                script {
+                    sh 'docker build -t spring_app .'
+                }
+            }
+        }
+
+        stage('DockerHub Push') {
+            steps {
+                // Log in to DockerHub
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'docker-connexion', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                    }
+                }
+                
+                // Push the Docker image to DockerHub with the Jenkins build number as the tag
+                script {
+                    def dockerTag = "omarbarkallah/spring_app:${BUILD_NUMBER}"
+                    sh "docker tag spring_app ${dockerTag}"
+                    sh "docker push ${dockerTag}"
+                }
+            }
+        }
+
+        stage('Run Docker Container') {
+            steps {
+                // Stop and remove the existing container if it exists
+                script {
+                    sh 'docker stop spring_app || true'
+                    sh 'docker rm spring_app || true'
+                }
+
+                // Run the Docker container
+                script {
+                    sh "docker run -d -p 8090:8080 --name spring_app omarbarkallah/spring_app:${BUILD_NUMBER}"
+                }
+            }
+        }
+    }    
+}
