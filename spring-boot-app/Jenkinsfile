@@ -20,7 +20,7 @@ stage('Build Code') {
     steps {
         // Build your Spring Boot application
         withMaven(maven: 'Maven3') {
-            sh "mvn clean install -Dmaven.test.skip=true"
+            sh "mvn clean install"
         }
     }
 }
@@ -62,7 +62,7 @@ stage('Build Code') {
 
                 // Run the Docker container
                 script {
-                    sh "docker run -d -p 8090:8080 --name spring_app omarbarkallah/spring_app:${BUILD_NUMBER}"
+                    sh "docker run -d -p 8085:8085 --name spring_app omarbarkallah/spring_app:${BUILD_NUMBER}"
                 }
             }
         }
